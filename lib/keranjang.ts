@@ -1,4 +1,11 @@
-export type ItemKeranjang = { id: number; jumlah: number };
+export type ItemKeranjang = {
+  id: number;
+  nama: string;
+  harga: number;
+  stok: number;
+  jumlah: number;
+};
+
 const KUNCI = "keranjang";
 
 export function bacaKeranjang(): ItemKeranjang[] {

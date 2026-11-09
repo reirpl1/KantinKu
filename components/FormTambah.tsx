@@ -11,16 +11,15 @@ export default function FormTambah({ item }: { item: Menu }) {
   function tambah() {
     const keranjang = bacaKeranjang();
 
-    // 2. cari apakah menu ini sudah ada, dan berapa jumlahnya
     const baris = keranjang.find((k) => k.id === item.id);
     const sudah = baris ? baris.jumlah : 0;
 
-    // 3. validasi
     if (!Number.isInteger(jumlah) || jumlah < 1) {
       setSukses(false);
       setPesan("Jumlah minimal 1.");
       return;
     }
+
     if (sudah + jumlah > item.stok) {
       setSukses(false);
       setPesan(
@@ -31,14 +30,31 @@ export default function FormTambah({ item }: { item: Menu }) {
       return;
     }
 
-    // 4. valid: gabung ke baris yang sama, atau buat baris baru
     const baru = baris
       ? keranjang.map((k) =>
-          k.id === item.id ? { ...k, jumlah: k.jumlah + jumlah } : k,
+          k.id === item.id
+            ? {
+                ...k,
+                nama: item.nama,
+                harga: item.harga,
+                stok: item.stok,
+                jumlah: k.jumlah + jumlah,
+              }
+            : k,
         )
-      : [...keranjang, { id: item.id, jumlah }];
+      : [
+          ...keranjang,
+          {
+            id: item.id,
+            nama: item.nama,
+            harga: item.harga,
+            stok: item.stok,
+            jumlah,
+          },
+        ];
 
     simpanKeranjang(baru);
+
     setSukses(true);
     setPesan("Ditambahkan ke keranjang.");
   }
