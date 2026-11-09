@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface ItemKeranjang {
   id: number;
@@ -11,338 +10,227 @@ interface ItemKeranjang {
 }
 
 export default function IsiKeranjang() {
-  // State keranjang
-  const [keranjang, setKeranjang] = useState<ItemKeranjang[]>([]);
-  const [isClient, setIsClient] = useState(false);
+  // Menggunakan Lazy Initial State agar bersih dari linter set-state-in-effect
+  const [keranjang, setKeranjang] = useState<ItemKeranjang[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const data = JSON.parse(localStorage.getItem("keranjang") || "[]");
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.error("Gagal membaca keranjang:", error);
+      return [];
+    }
+  });
 
   const [kodePromo, setKodePromo] = useState("");
   const [diskonAktif, setDiskonAktif] = useState(false);
   const [pesanPromo, setPesanPromo] = useState("");
-
   const [caraAmbil, setCaraAmbil] = useState("sendiri");
   const [kelas, setKelas] = useState("");
   const [namaPemesan, setNamaPemesan] = useState("");
-
   const [errorMsg, setErrorMsg] = useState("");
   const [struk, setStruk] = useState("");
 
-  // Membaca keranjang setelah komponen dimuat di browser
-  useEffect(() => {
-    try {
-      const data = JSON.parse(localStorage.getItem("keranjang") || "[]");
-
-      setKeranjang(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Gagal membaca keranjang:", error);
-      setKeranjang([]);
-    } finally {
-      setIsClient(true);
-    }
-  }, []);
-
-  // Fungsi menyimpan perubahan keranjang
   const updateDanSimpan = (dataBaru: ItemKeranjang[]) => {
     setKeranjang(dataBaru);
-
     localStorage.setItem("keranjang", JSON.stringify(dataBaru));
-
     window.dispatchEvent(new Event("keranjang-berubah"));
   };
 
-  // Mengubah harga menjadi angka
   const parseHarga = (harga: unknown): number => {
     if (typeof harga === "number") return harga;
     if (!harga) return 0;
-
     const cleaned = String(harga).replace(/[^0-9]/g, "");
-
     return Number(cleaned) || 0;
   };
 
-  // Format rupiah
-  const formatRupiah = (angka: number) => {
-    return angka.toLocaleString("id-ID");
-  };
-
-  // Menambah dan mengurangi jumlah barang
   const ubahJumlah = (index: number, delta: number) => {
     const dataBaru = [...keranjang];
     const item = dataBaru[index];
-
     const jumlahBaru = item.jumlah + delta;
 
     if (jumlahBaru < 1 || jumlahBaru > item.stok) return;
-
     item.jumlah = jumlahBaru;
-
     updateDanSimpan(dataBaru);
   };
 
-  // Menghapus barang
   const hapusItem = (index: number) => {
     const dataBaru = keranjang.filter((_, i) => i !== index);
-
     updateDanSimpan(dataBaru);
   };
 
-  // Menghitung subtotal
   const subtotal = keranjang.reduce(
     (acc, item) => acc + parseHarga(item.harga) * Number(item.jumlah || 1),
     0,
   );
 
-  // Perhitungan diskon dan ongkir
   const isDiskonValid = diskonAktif && subtotal >= 20000;
-
   const nilaiDiskon = isDiskonValid ? Math.round(subtotal * 0.1) : 0;
-
   const ongkir = caraAmbil === "diantar" ? 2000 : 0;
-
   const totalBayar = subtotal - nilaiDiskon + ongkir;
 
-  // Menggunakan kode promo
   const handlePakaiPromo = () => {
     const kodeClean = kodePromo.trim().toUpperCase();
-
     if (kodeClean !== "HEMAT10") {
       setDiskonAktif(false);
       setPesanPromo("Kode promo tidak dikenal.");
       return;
     }
-
     if (subtotal < 20000) {
       setDiskonAktif(false);
       setPesanPromo("Promo HEMAT10 butuh belanja minimal Rp 20.000.");
       return;
     }
-
     setDiskonAktif(true);
-
     setPesanPromo("Promo HEMAT10 dipakai: diskon 10%.");
   };
 
-  // Memproses pesanan
-  const handlePesanSekarang = (e: React.FormEvent<HTMLFormElement>) => {
+  const handlePesanSekarang = (e: React.FormEvent) => {
     e.preventDefault();
-
     setErrorMsg("");
 
-    // Validasi nama pemesan
     if (!namaPemesan || namaPemesan.trim().length < 3) {
       setErrorMsg("Nama pemesan minimal 3 huruf.");
       return;
     }
 
-    // Validasi kelas jika pesanan diantar
     if (caraAmbil === "diantar" && (!kelas || kelas.trim().length < 3)) {
       setErrorMsg("Kelas wajib diisi minimal 3 karakter jika diantar.");
       return;
     }
 
-    // Validasi keranjang
     if (keranjang.length === 0) {
       setErrorMsg("Keranjang masih kosong.");
       return;
     }
 
-    // Membuat identitas transaksi
-    const tanggal = new Date();
-
-    const nomorTransaksi = `TRX-${tanggal.getTime().toString().slice(-8)}`;
-
-    // Membuat isi struk
-    let strukText = `
-No. Transaksi : ${nomorTransaksi}
-Tanggal       : ${tanggal.toLocaleDateString("id-ID")}
-Waktu         : ${tanggal.toLocaleTimeString("id-ID")}
-Nama Pemesan  : ${namaPemesan.trim()}
---------------------------------
-DAFTAR PEMBELIAN
---------------------------------
-`;
-
+    let strukText = `Terima kasih, ${namaPemesan}!\n`;
     keranjang.forEach((item) => {
       const hargaNum = parseHarga(item.harga);
-
-      const totalItem = hargaNum * item.jumlah;
-
-      strukText += `${item.nama}
-${item.jumlah} x Rp ${formatRupiah(hargaNum)}
-Subtotal: Rp ${formatRupiah(totalItem)}
-
-`;
+      strukText += `- ${item.nama} x${item.jumlah} = Rp ${(hargaNum * item.jumlah).toLocaleString("id-ID")}\n`;
     });
-
-    strukText += `--------------------------------
-Subtotal      : Rp ${formatRupiah(subtotal)}
-`;
-
+    strukText += `Subtotal: Rp ${subtotal.toLocaleString("id-ID")}`;
     if (isDiskonValid) {
-      strukText += `Diskon 10%    : -Rp ${formatRupiah(nilaiDiskon)}
-`;
+      strukText += `, Diskon: Rp ${nilaiDiskon.toLocaleString("id-ID")}`;
     }
-
     if (caraAmbil === "diantar") {
-      strukText += `Ongkir        : Rp ${formatRupiah(ongkir)}
-Diantar ke    : ${kelas.trim()}
-`;
+      strukText += `, Ongkir antar ke ${kelas}: Rp 2.000`;
     } else {
-      strukText += `Pengambilan   : Ambil sendiri
-`;
+      strukText += `, Diambil sendiri di kantin`;
     }
-
-    strukText += `================================
-TOTAL BAYAR   : Rp ${formatRupiah(totalBayar)}
-================================`;
+    strukText += `, Total bayar: Rp ${totalBayar.toLocaleString("id-ID")}`;
 
     setStruk(strukText);
 
-    // Menyimpan transaksi ke riwayat
     try {
-      const riwayatLama = JSON.parse(localStorage.getItem("riwayat") || "[]");
-
+      const riwayatLama = JSON.parse(
+        localStorage.getItem("riwayat") || "[]",
+      ) as unknown[];
       const pesananBaru = {
-        nomorTransaksi,
-        waktu: tanggal.toISOString(),
-        nama: namaPemesan.trim(),
-
+        waktu: new Date().toISOString(),
+        nama: namaPemesan,
         menu: keranjang.map((item) => ({
           ...item,
           harga: parseHarga(item.harga),
         })),
-
         subtotal,
         diskon: nilaiDiskon,
         ongkir,
         total: totalBayar,
-
         caraAmbil,
-
-        kelas: caraAmbil === "diantar" ? kelas.trim() : "Kantin",
-
+        kelas: caraAmbil === "diantar" ? kelas : "Kantin",
         jumlahMenu: keranjang.reduce((acc, item) => acc + item.jumlah, 0),
       };
 
       localStorage.setItem(
         "riwayat",
-        JSON.stringify([
-          pesananBaru,
-          ...(Array.isArray(riwayatLama) ? riwayatLama : []),
-        ]),
+        JSON.stringify([pesananBaru, ...riwayatLama]),
       );
-    } catch (error) {
-      console.error("Gagal menyimpan riwayat:", error);
+    } catch (err) {
+      console.error(err);
     }
 
-    // Mengosongkan keranjang setelah transaksi
     updateDanSimpan([]);
-
     setNamaPemesan("");
     setKelas("");
     setKodePromo("");
     setDiskonAktif(false);
-    setPesanPromo("");
   };
 
-  // Tampilan sementara saat membaca localStorage
-  if (!isClient) {
-    return <p className="mt-4 text-slate-500">Memuat keranjang...</p>;
-  }
-
-  // Jika keranjang kosong dan belum ada struk
   if (keranjang.length === 0 && !struk) {
     return <p className="mt-4 text-slate-600">Keranjang masih kosong.</p>;
   }
 
   return (
     <div className="mt-4 space-y-6 max-w-xl">
-      {/* =============================== */}
-      {/* STRUK PEMBELIAN */}
-      {/* =============================== */}
-
       {struk && (
-        <div className="flex justify-center py-5">
-          <div className="w-full max-w-[360px] overflow-hidden border border-slate-200 bg-white text-slate-900 shadow-xl">
-            {/* Header Struk */}
-            <div className="px-5 pt-6 pb-4 text-center">
-              <div className="mb-2 text-3xl">🛒</div>
+        <div className="mx-auto w-full max-w-sm overflow-hidden rounded-sm border border-slate-200 bg-white text-slate-800 shadow-lg">
+          {/* Kepala struk */}
+          <div className="px-6 pt-6 pb-4 text-center">
+            <h2 className="text-2xl font-black tracking-widest">KANTINKU</h2>
+            <p className="mt-1 text-xs tracking-widest text-slate-500">
+              BUKTI PEMESANAN
+            </p>
+            <div className="mt-4 border-t border-dashed border-slate-400" />
+          </div>
 
-              <h2 className="text-xl font-black tracking-widest">
-                KANTIN SEKOLAH
-              </h2>
+          {/* Status pesanan */}
+          <div className="px-6 pb-3 text-center">
+            <span className="inline-block rounded-full bg-green-100 px-4 py-1 text-xs font-bold tracking-wider text-green-700">
+              PESANAN BERHASIL
+            </span>
+          </div>
 
-              <p className="mt-1 text-[10px] tracking-[0.3em] text-slate-500">
-                FOOD & DRINK
-              </p>
-
-              <div className="mt-4 border-t border-dashed border-slate-400" />
-
-              <p className="mt-3 text-xs font-bold tracking-widest">
-                STRUK PEMBELIAN
-              </p>
-
-              <p className="mt-1 text-[10px] text-green-600 font-semibold">
-                PESANAN BERHASIL
-              </p>
-            </div>
-
-            {/* Detail Transaksi */}
-            <div className="px-5 pb-4">
-              <pre className="whitespace-pre-wrap break-words font-mono text-[11px] leading-[1.8] text-slate-700">
-                {struk.trim()}
+          {/* Isi struk */}
+          <div className="px-6 pb-5">
+            <div className="border-y border-dashed border-slate-400 py-4">
+              <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-slate-700">
+                {struk}
               </pre>
             </div>
 
-            {/* Footer Struk */}
-            <div className="px-5 pb-6 text-center">
-              <div className="mb-4 border-t border-dashed border-slate-400" />
-
-              <p className="text-sm font-black tracking-widest">
-                TERIMA KASIH!
-              </p>
-
+            {/* Penutup */}
+            <div className="pt-5 text-center">
+              <p className="text-sm font-bold tracking-widest">TERIMA KASIH</p>
               <p className="mt-1 text-xs text-slate-500">
-                Selamat menikmati pesanan Anda.
+                Selamat menikmati pesanan Anda!
               </p>
-
-              <p className="mt-4 text-[10px] text-slate-400">
-                Simpan struk ini sebagai bukti pembelian.
+              <p className="mt-3 text-[10px] tracking-widest text-slate-400">
+                *** SIMPAN STRUK INI ***
               </p>
-
-              <div className="mt-4 text-lg tracking-[0.4em]">* * * * *</div>
             </div>
+          </div>
+
+          {/* Efek tepi bawah kertas */}
+          <div className="flex justify-between px-1">
+            {Array.from({ length: 20 }).map((_, i) => (
+              <div key={i} className="h-3 w-3 rotate-45 bg-slate-100" />
+            ))}
           </div>
         </div>
       )}
-
-      {/* =============================== */}
-      {/* DAFTAR KERANJANG */}
-      {/* =============================== */}
 
       {keranjang.length > 0 && (
         <div className="space-y-4">
           <div className="space-y-3">
             {keranjang.map((item, index) => {
               const hargaNum = parseHarga(item.harga);
-
               const subtotalItem = hargaNum * Number(item.jumlah || 1);
 
               return (
                 <div
                   key={index}
-                  className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md sm:flex-row sm:items-center"
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all hover:shadow-md"
                 >
                   <div className="space-y-1">
-                    <h2 className="text-lg font-semibold text-slate-800">
+                    <h2 className="font-semibold text-lg text-slate-800">
                       {item.nama}
                     </h2>
-
                     <p className="text-sm text-slate-500">
-                      Harga satuan: Rp {formatRupiah(hargaNum)}
+                      Harga satuan: Rp {hargaNum.toLocaleString("id-ID")}
                     </p>
-
                     <p className="text-sm font-medium text-slate-700">
-                      Subtotal: Rp {formatRupiah(subtotalItem)}
+                      Subtotal: Rp {subtotalItem.toLocaleString("id-ID")}
                     </p>
                   </div>
 
@@ -354,11 +242,9 @@ TOTAL BAYAR   : Rp ${formatRupiah(totalBayar)}
                     >
                       -
                     </button>
-
                     <span className="w-8 text-center font-semibold">
                       {item.jumlah}
                     </span>
-
                     <button
                       type="button"
                       onClick={() => ubahJumlah(index, 1)}
@@ -366,11 +252,10 @@ TOTAL BAYAR   : Rp ${formatRupiah(totalBayar)}
                     >
                       +
                     </button>
-
                     <button
                       type="button"
                       onClick={() => hapusItem(index)}
-                      className="rounded-lg bg-red-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-600"
+                      className="rounded-lg bg-red-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-600 transition-colors"
                     >
                       Hapus
                     </button>
@@ -380,15 +265,10 @@ TOTAL BAYAR   : Rp ${formatRupiah(totalBayar)}
             })}
           </div>
 
-          {/* =============================== */}
-          {/* KODE PROMO */}
-          {/* =============================== */}
-
-          <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-2">
             <label className="block text-sm font-medium text-slate-700">
               Punya Kode Promo?
             </label>
-
             <div className="flex space-x-2">
               <input
                 type="text"
@@ -397,32 +277,25 @@ TOTAL BAYAR   : Rp ${formatRupiah(totalBayar)}
                 onChange={(e) => setKodePromo(e.target.value)}
                 className="flex-1 rounded-lg border border-slate-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-
               <button
                 type="button"
                 onClick={handlePakaiPromo}
-                className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-900"
+                className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 transition-colors"
               >
                 Pakai
               </button>
             </div>
-
             {pesanPromo && (
               <p className="text-xs font-medium text-slate-600">{pesanPromo}</p>
             )}
           </div>
 
-          {/* =============================== */}
-          {/* CARA PENGAMBILAN */}
-          {/* =============================== */}
-
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
             <label className="block text-sm font-medium text-slate-700">
               Cara ambil:
             </label>
-
             <div className="flex space-x-6 text-sm">
-              <label className="flex cursor-pointer items-center space-x-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="radio"
                   name="caraAmbil"
@@ -431,11 +304,9 @@ TOTAL BAYAR   : Rp ${formatRupiah(totalBayar)}
                   onChange={() => setCaraAmbil("sendiri")}
                   className="accent-blue-600"
                 />
-
                 <span>Ambil sendiri</span>
               </label>
-
-              <label className="flex cursor-pointer items-center space-x-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="radio"
                   name="caraAmbil"
@@ -444,17 +315,15 @@ TOTAL BAYAR   : Rp ${formatRupiah(totalBayar)}
                   onChange={() => setCaraAmbil("diantar")}
                   className="accent-blue-600"
                 />
-
                 <span>Diantar (+Rp 2.000)</span>
               </label>
             </div>
 
             {caraAmbil === "diantar" && (
               <div className="pt-2">
-                <label className="mb-1 block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Kelas:
                 </label>
-
                 <input
                   type="text"
                   placeholder="Masukkan kelas (contoh: XII RPL)"
@@ -466,49 +335,37 @@ TOTAL BAYAR   : Rp ${formatRupiah(totalBayar)}
             )}
           </div>
 
-          {/* =============================== */}
-          {/* RINGKASAN PEMBAYARAN */}
-          {/* =============================== */}
-
-          <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm shadow-sm">
             <div className="flex justify-between text-slate-600">
               <span>Subtotal</span>
-              <span>Rp {formatRupiah(subtotal)}</span>
+              <span>Rp {subtotal.toLocaleString("id-ID")}</span>
             </div>
-
             {isDiskonValid && (
-              <div className="flex justify-between font-medium text-green-600">
+              <div className="flex justify-between text-green-600 font-medium">
                 <span>Diskon (10%)</span>
-                <span>-Rp {formatRupiah(nilaiDiskon)}</span>
+                <span>-Rp {nilaiDiskon.toLocaleString("id-ID")}</span>
               </div>
             )}
-
             {caraAmbil === "diantar" && (
               <div className="flex justify-between text-slate-600">
                 <span>Ongkir</span>
-                <span>Rp {formatRupiah(ongkir)}</span>
+                <span>Rp 2.000</span>
               </div>
             )}
-
-            <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-slate-900">
+            <div className="flex justify-between font-bold text-base text-slate-900 border-t border-slate-200 pt-2">
               <span>Total Bayar</span>
-              <span>Rp {formatRupiah(totalBayar)}</span>
+              <span>Rp {totalBayar.toLocaleString("id-ID")}</span>
             </div>
           </div>
 
-          {/* =============================== */}
-          {/* FORM PEMESANAN */}
-          {/* =============================== */}
-
           <form
             onSubmit={handlePesanSekarang}
-            className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4"
           >
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Nama pemesan:
               </label>
-
               <input
                 type="text"
                 placeholder="Minimal 3 huruf"
@@ -519,12 +376,12 @@ TOTAL BAYAR   : Rp ${formatRupiah(totalBayar)}
             </div>
 
             {errorMsg && (
-              <p className="text-xs font-medium text-red-500">{errorMsg}</p>
+              <p className="text-red-500 text-xs font-medium">{errorMsg}</p>
             )}
 
             <button
               type="submit"
-              className="w-full rounded-xl bg-green-600 py-3 font-bold text-white shadow-md transition-colors hover:bg-green-700"
+              className="w-full rounded-xl bg-green-600 py-3 font-bold text-white shadow-md hover:bg-green-700 transition-colors"
             >
               Pesan sekarang
             </button>

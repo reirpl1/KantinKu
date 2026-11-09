@@ -1,18 +1,18 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { rupiah } from "@/data/menu";
 import { bacaRiwayat, type Pesanan } from "@/lib/riwayat";
 
-export default function DaftarRiwayat() {
-  const [daftar, setDaftar] = useState<Pesanan[]>([]);
-  const [siap, setSiap] = useState(false);
-
-  useEffect(() => {
-    setDaftar(bacaRiwayat());
-    setSiap(true);
-  }, []);
-
-  if (!siap) return null;
+export default function DaftarFavorit() {
+  const [daftar] = useState<Pesanan[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const data = bacaRiwayat();
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  });
 
   if (daftar.length === 0) {
     return <p className="text-slate-600">Belum ada riwayat pesanan.</p>;

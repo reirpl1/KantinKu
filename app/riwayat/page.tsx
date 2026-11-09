@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface PesananItem {
   nama: string;
@@ -12,33 +11,23 @@ interface Pesanan {
   waktu: string;
   nama: string;
   menu: PesananItem[];
-  subtotal?: number;
-  diskon?: number;
-  ongkir?: number;
   total: number;
   caraAmbil: string;
   kelas?: string;
 }
 
 export default function RiwayatPage() {
-  const [riwayat, setRiwayat] = useState<Pesanan[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Membaca riwayat setelah komponen dimuat di browser
-  useEffect(() => {
+  // Menggunakan Lazy Initial State agar bersih dari linter set-state-in-effect
+  const [riwayat, setRiwayat] = useState<Pesanan[]>(() => {
+    if (typeof window === "undefined") return [];
     try {
-      const data = JSON.parse(
-        localStorage.getItem("riwayat") || "[]",
-      ) as Pesanan[];
-
-      setRiwayat(Array.isArray(data) ? data : []);
+      const data = JSON.parse(localStorage.getItem("riwayat") || "[]");
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       console.error("Gagal membaca riwayat:", error);
-      setRiwayat([]);
-    } finally {
-      setIsLoading(false);
+      return [];
     }
-  }, []);
+  });
 
   // Fungsi menghapus seluruh riwayat
   const hapusRiwayat = () => {
@@ -72,17 +61,6 @@ export default function RiwayatPage() {
     });
   };
 
-  // Tampilan sementara sebelum data selesai dibaca
-  if (isLoading) {
-    return (
-      <main className="p-4 max-w-xl mx-auto">
-        <h1 className="text-2xl font-bold mb-4">Riwayat</h1>
-        <p className="text-slate-500">Memuat riwayat pesanan...</p>
-      </main>
-    );
-  }
-
-  // Tampilan jika belum ada pesanan
   if (riwayat.length === 0) {
     return (
       <main className="p-4 max-w-xl mx-auto">
@@ -100,28 +78,25 @@ export default function RiwayatPage() {
         <button
           type="button"
           onClick={hapusRiwayat}
-          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
         >
           Hapus Riwayat
         </button>
       </div>
 
-      {/* Ringkasan Pesanan */}
-      <div className="bg-slate-100 p-4 rounded border text-sm font-medium text-slate-800">
+      <div className="bg-slate-100 p-4 rounded-xl border text-sm font-medium text-slate-800 shadow-sm">
         Ringkasan: {totalPesanan} pesanan, total belanja Rp{" "}
         {totalSemuaBelanja.toLocaleString("id-ID")}
       </div>
 
-      {/* Daftar Riwayat */}
       <div className="space-y-4">
         {riwayat.map((pesanan, index) => (
           <div
             key={index}
-            className="border p-4 rounded-lg bg-white shadow-sm space-y-2"
+            className="border p-4 rounded-xl bg-white shadow-sm space-y-2"
           >
             <div className="flex justify-between text-xs text-slate-500 border-b pb-1">
               <span>{formatTanggal(pesanan.waktu)}</span>
-
               <span className="font-semibold text-slate-700">
                 Pemesan: {pesanan.nama}
               </span>
