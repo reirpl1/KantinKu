@@ -189,7 +189,6 @@ export default function IsiKeranjang() {
               </pre>
             </div>
 
-            {/* Penutup */}
             <div className="pt-5 text-center">
               <p className="text-sm font-bold tracking-widest">TERIMA KASIH</p>
               <p className="mt-1 text-xs text-slate-500">
