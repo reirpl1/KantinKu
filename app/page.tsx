@@ -12,7 +12,7 @@ export default function Home() {
       <section className="py-12 text-center">
         <h1 className="text-4xl font-bold">KantinKu</h1>
         <p className="mt-3 text-slate-600">
-          Pesan makanan dan minuman kantin sekolah tanpa antre.
+          Pesan makanan dan minuman kantin sekolah tanpa antri.
         </p>
         <Link
           href="/menu"
