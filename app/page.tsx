@@ -3,7 +3,6 @@ import { menu } from "@/data/menu";
 import KartuMenu from "@/components/KartuMenu";
 
 export default function Home() {
-  // data menu tidak punya angka penjualan, jadi "laris" dipilih manual lewat id
   const idLaris = [1, 3, 5];
   const menuLaris = menu.filter((m) => idLaris.includes(m.id));
 
