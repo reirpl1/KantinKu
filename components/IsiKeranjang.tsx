@@ -184,7 +184,7 @@ export default function IsiKeranjang() {
           {/* Isi struk */}
           <div className="px-6 pb-5">
             <div className="border-y border-dashed border-slate-400 py-4">
-              <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-slate-700">
+              <pre className="whitespace-pre-wrap wrap-break-word font-mono text-xs leading-6 text-slate-700">
                 {struk}
               </pre>
             </div>
